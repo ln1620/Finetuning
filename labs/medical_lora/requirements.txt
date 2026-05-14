@@ -1,0 +1,13 @@
+# Install PyTorch for your platform first: https://pytorch.org/get-started/locally/
+# urllib3 v2 warns on macOS LibreSSL; v1.x is fine for HF stack.
+urllib3>=1.26.14,<2
+torch>=2.2.0
+transformers>=4.43.0
+datasets>=2.18.0
+accelerate>=0.28.0
+peft>=0.11.0
+trl>=0.9.6
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+safetensors>=0.4.0
+sentencepiece>=0.2.0

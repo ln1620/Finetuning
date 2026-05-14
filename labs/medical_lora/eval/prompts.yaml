@@ -1,0 +1,10 @@
+# Fixed prompts for before/after LoRA comparison (edit freely).
+prompts:
+  - id: panic_attack
+    prompt: "What is a panic attack?"
+  - id: mental_illness_types
+    prompt: "What are the types of mental illness?"
+  - id: stress_management
+    prompt: "How can I manage stress in daily life?"
+  - id: help_friend
+    prompt: "What should I do if I'm worried about a friend's mental health?"

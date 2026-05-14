@@ -16,6 +16,8 @@ Diagrams are Mermaid where GitHub renders them, plus ASCII where a sketch is fas
 | [04-efficient-fine-tuning](04-efficient-fine-tuning/) | LoRA, QLoRA, PEFT, adapters |
 | [05-post-training-alignment](05-post-training-alignment/) | RLHF, forgetting, distillation |
 
+**Runnable lab (LoRA + FUNPANG data):** [labs/medical_lora/README.md](labs/medical_lora/README.md) — Meta Llama 3.2 3B, M2/16 GB–friendly defaults, before/after compare script.
+
 ---
 
 ## Map (same order as the table)

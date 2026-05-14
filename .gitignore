@@ -1,1 +1,7 @@
 .DS_Store
+
+# LoRA lab — secrets and large artifacts
+labs/medical_lora/.env
+labs/medical_lora/.venv/
+labs/medical_lora/outputs/
+labs/medical_lora/data/train.jsonl
