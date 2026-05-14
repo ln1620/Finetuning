@@ -1,38 +1,120 @@
-# 03 — Symmetric quantization
+# Symmetric quantization
 
-## In one minute
+**Idea in one sentence:** pick how big your real weights can get, map that range onto integers (here **0…255** for uint8), divide by a **scale** so each integer step means a fixed chunk of the real line, then **round**.
 
-Pick the **smallest** and **largest** value a tensor can take, stretch or shrink that interval onto the integer range you have (for example 0–255), then **round**. That stretch factor is the **scale**. Symmetric schemes often map zero in floats to zero in integers—simple, but not always flexible enough.
+---
 
-## Beginner walkthrough
+### What each letter means (no math yet)
 
-1. **Range determination**  
-   For a weight tensor (or a channel), estimate \(r_{\min}\) and \(r_{\max}\) from weights or from running **calibration** data for activations.
+| symbol | plain meaning |
+|--------|----------------|
+| w | one real weight (float) before quant |
+| q | the small integer code you store (0…255 here) |
+| r_min, r_max | “we believe weights live between these two floats” (from the tensor or from calibration data) |
+| q_min, q_max | ends of the integer shelf (for uint8: 0 and 255) |
+| s | **scale** — how many real units one tick of q covers |
 
-2. **Choose integer range**  
-   For **uint8**, \(q_{\min}=0\), \(q_{\max}=255\).
+---
 
-3. **Scale (min–max)**  
-   \[
-   s = \frac{r_{\max} - r_{\min}}{q_{\max} - q_{\min}}
-   \]
+### 1. Find the float range
 
-4. **Quantize a single weight**  
-   \[
-   q = \mathrm{round}\left(\frac{w}{s}\right)
-   \]  
-   (In pure symmetric centered-at-zero formulations you may see variants with clipping; the min–max story matches your notes.)
+Look at the tensor (or run a few calibration batches for activations). That gives you **r_min** and **r_max**.
 
-5. **Notebook-style numeric example**  
-   If real weights lie in \([0, 1000]\) and uint8 uses \([0,255]\):  
-   \[
-   s = \frac{1000 - 0}{255 - 0} = \frac{1000}{255} \approx 3.92
-   \]  
-   Then \(q = \mathrm{round}(w / 3.92)\).
+---
 
-## Visuals
+### 2. Integer shelf (uint8)
 
-**Number-line intuition (ASCII)**
+You only have 256 slots:
+
+- **q_min = 0**
+- **q_max = 255**
+
+---
+
+### 3. Scale (min–max) — the fraction, written so you can read it
+
+You are stretching **(r_max − r_min)** real units across **(q_max − q_min)** integer steps.
+
+**Scale s (three equivalent ways to read the same thing):**
+
+```
+                    (r_max − r_min)          how wide floats are
+        s  =  ─────────────────────  =  ───────────────────────────
+                    (q_max − q_min)        how many int steps you use
+```
+
+**Numbers only, uint8:** bottom is always **255 − 0 = 255**, so:
+
+```
+                    (r_max − r_min)
+        s  =  ─────────────────────
+                           255
+```
+
+**In plain English:**  
+scale = **(widest float − smallest float) ÷ (255 − 0)** for uint8.
+
+---
+
+### 4. Turn one weight into an integer code
+
+**Quantize one weight w into integer q:**
+
+```
+                    w
+        q  =  round ( ─ )
+                    s
+```
+
+**In plain English:** divide the real weight by the scale, then round to the nearest whole number. That whole number is your stored code **q**.
+
+If rounding overshoots **0…255**, **clamp** back into range.
+
+---
+
+### 5. Full hand example (the one I always walk through)
+
+**Assumption:** every weight in this tensor sits in **[0, 1000]** (so r_min = 0, r_max = 1000).  
+**Storage:** uint8, so q_min = 0, q_max = 255.
+
+**Step A — scale**
+
+```
+                    1000 − 0       1000
+        s  =  ──────────────  =  ─────  ≈  3.9216
+                    255 − 0        255
+```
+
+So **one uint8 step ≈ 3.92 units** on the real weight line.
+
+**Step B — quantize a few weights** (same formula: **q = round(w ÷ s)**)
+
+| real weight w | w ÷ s (before round) | uint8 q (after round + clamp) |
+|---------------|----------------------|--------------------------------|
+| 0 | 0.00 | 0 |
+| 100 | 25.50 | **26** |
+| 500 | 127.50 | **128** |
+| 1000 | 255.00 | **255** |
+
+**Step C — roughly go back to float (dequantize)**  
+If you only need “good enough” float weights for a matmul:
+
+```
+    w_reconstructed  ≈  s × q
+```
+
+(some people write **w̃** for “approximate w after dequant”.)
+
+| q | s × q ≈ reconstructed float |
+|---|-------------------------------|
+| 0 | 0 |
+| 26 | 26 × 3.9216 ≈ **102.0** (wanted 100 — rounding error) |
+| 128 | 128 × 3.9216 ≈ **502.0** (wanted 500) |
+| 255 | 255 × 3.9216 ≈ **1000.0** |
+
+So you see the trade: **small integers on disk**, **small error** if the range was honest.
+
+Number line sketch:
 
 ```
 Real weights:     0 --------------------------- 1000
@@ -42,7 +124,7 @@ Quantized uint8:  0 ---- ... ---- 255
                   qmin              qmax
 ```
 
-**Pipeline**
+Pipeline:
 
 ```mermaid
 flowchart LR
@@ -51,20 +133,33 @@ flowchart LR
   step3 --> step4[QuantizedTensor]
 ```
 
-## Going deeper
+---
 
-- **Outliers** dominate min–max: one huge weight widens the range and wastes integer buckets. Practitioners use **percentile** ranges, **smoothing**, or per-group scales.
-- **Dequantization** for compute: stored as \(q\), used as \(\tilde{w} \approx s \cdot q\) when multiplying with activations in higher precision.
-- **Signed symmetric** (e.g. int8 with zero at center) is common in hardware; your notes emphasized uint8 mapping—same idea with different \(q_{\min}, q_{\max}\).
+### 6. Dequantize (when kernels want floats again)
 
-## Mini glossary
+Stored: integer **q**. Used in math: approximate float
+
+```
+    w_reconstructed  =  s × q
+```
+
+so **w_reconstructed ≈ w** up to the error you saw in the table.
+
+---
+
+## Extras
+
+- **Outliers** blow up r_max → huge s → fat rounding steps. That is why people use percentiles / per-group scales in real PTQ.
+- **Signed int8** “symmetric around zero” is the same story with different q_min, q_max; I used uint8 here because the arithmetic fits on one line.
+
+---
+
+## Terms
 
 | Term | Meaning |
 |------|---------|
-| Scale \(s\) | Real-world span of one integer step. |
-| Min–max quantization | Range from observed min and max. |
-| Calibration | Data-driven min/max estimation for activations or weights. |
+| Scale s | Real-world thickness of one q tick (here from min–max). |
+| Min–max quantization | r_min, r_max from observed min and max. |
+| Calibration | Run data to estimate ranges for activations or weights. |
 
-## What to read next
-
-**[04 — Asymmetric quantization](03-asymmetric-quantization.md)** — when the float range is not a simple interval anchored the way uint8 symmetry expects.
+Next: [Asymmetric quantization](03-asymmetric-quantization.md) — add a zero-point when the float range is skewed.

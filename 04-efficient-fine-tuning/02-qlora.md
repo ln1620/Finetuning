@@ -1,31 +1,76 @@
-# 10 — QLoRA (quantized LoRA)
+# QLoRA (quantized LoRA)
 
-## In one minute
+**Idea in one sentence:** same LoRA math (**y ≈ Wx + BAx**), but the frozen **W** is **packed in 4-bit** (or similar) in VRAM; **A** and **B** stay in FP16/BF16 so training stays stable. Right before the matmul, **W** is **dequantized** back to a usable float matrix.
 
-**QLoRA** is LoRA plus **quantized frozen base weights**: the big matrix \(W\) is stored in **4-bit** (or similar) for memory savings, while the small LoRA matrices \(A\) and \(B\) stay in **FP16/BF16** for stable training. At compute time, \(W\) is **dequantized** to a higher precision so it can be combined with \(BA\).
+---
 
-## Beginner walkthrough
+### The math you are still doing
 
-1. **Motivation**  
-   Even with LoRA, loading a 70B model in FP16 for training is painful. **Quantizing only the frozen backbone** shrinks memory a lot.
+```
+    y  =  W_tilde · x  +  B · A · x
+```
 
-2. **Pipeline (conceptual)**  
-   - **Quantize** the frozen weight matrix \(W\) to a low-bit representation \(W_q\) with metadata (block scales, etc., depending on implementation).  
-   - **Attach** LoRA matrices \(A,B\).  
-   - **Train** only \(A,B\) (and sometimes norms), not every entry of \(W\).
+- **W_q** — what is actually in memory (low-bit codes + scale metadata)
+- **W_tilde** (same idea as “W̃”) — short-lived float view of W built from W_q for this matmul
+- **A, B** — same shapes as plain LoRA: **r×d_in** and **d_out×r**
 
-3. **Why not quantize \(A\) and \(B\)?**  
-   They are **small** and **actively changing**; keeping them in FP16/BF16 avoids unnecessary noise in gradients. The memory win from 4-bitting them is minor compared to the base.
+So the **shape picture** is identical to the LoRA note; only **where W lives** changes.
 
-4. **Mixed dtypes in \(y = (W + BA)x\)**  
-   You cannot meaningfully add int4 storage to FP16 tensors directly. Implementations **dequantize** \(W_q \rightarrow \tilde{W}\) in FP16/BF32 for the matmul, then add \(BA x\) in that precision path (exact details depend on kernels).
+---
 
-5. **Three-step story (matches study notes)**  
-   Quantize base → add low-rank adapters → fine-tune **adapters only**.
+### Memory vs compute (two different stories)
 
-## Visuals
+```
+┌─────────────────────────────────────────────────────────────┐
+│  MEMORY (what sits on the GPU during training)              │
+├─────────────────────────────────────────────────────────────┤
+│  W_q   : 4-bit (or int8) codes + scales      ← cheap        │
+│  A, B  : FP16 / BF16                         ← small anyway │
+└─────────────────────────────────────────────────────────────┘
 
-**Storage vs compute**
+┌─────────────────────────────────────────────────────────────┐
+│  COMPUTE (what one linear forward roughly does)             │
+├─────────────────────────────────────────────────────────────┤
+│  W_q  ──dequant──►  W_tilde  ──@x──►  (add)  ◄── B @ A @ x  │
+│                     FP16/BF32              same dtype path  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+You **do not** literally add int4 to float16. You **expand** W_q → W̃, then do normal linear algebra.
+
+---
+
+### Multiply order (same as LoRA, repeated on purpose)
+
+```
+   W_tilde        x          B          A          x
+(d_out × d_in) × (d_in×1) + (d_out×r)×(r×d_in)×(d_in×1)
+```
+
+First branch: **W̃ x** → length d_out  
+Second branch: **B(Ax)** — **Ax** is length **r**, then **B** blows it back to **d_out**.
+
+---
+
+### Pipeline checklist
+
+1. **Quantize** frozen W → **W_q** (+ block scales, library-specific).
+2. **Attach** LoRA matrices **A, B** (FP16/BF16).
+3. **Train** only **A, B** (and sometimes norms).
+
+---
+
+### Why I do not bother quantizing A and B
+
+They are **small** and **change every step**; low-bit them and you mostly inject noise into gradients. The VRAM win is almost all from squishing **W**.
+
+---
+
+### Three-step story (mental model)
+
+Quantize base → add low-rank adapters → fine-tune **adapters only**.
+
+---
 
 ```mermaid
 flowchart LR
@@ -37,27 +82,27 @@ flowchart LR
   add --> yOut[Output_y]
 ```
 
-**QLoRA recipe (bubbles)**
-
 ```mermaid
 flowchart LR
   b1[QuantizeBaseModel] --> b2[AddLowRankAdapters]
   b2 --> b3[FineTuneAdaptersOnly]
 ```
 
-## Going deeper
+---
 
-- **NF4 and double quant** (original QLoRA paper): non-uniform 4-bit levels and compressed scale tensors—your notes focus on the idea, not every format bit.
-- **Paged optimizers** and **gradient checkpointing** pair with QLoRA to fit large models on one GPU.
-- **Accuracy**: QLoRA can match 16-bit LoRA on many benchmarks when hyperparameters are sane—still validate on **your** task.
+## Extras
 
-## Mini glossary
+- **NF4 + double quant** (QLoRA paper): fancier 4-bit levels + compressed scales—I only care about the idea here, not every bit layout.
+- **Paged optimizers** + **gradient checkpointing** are the usual friends for one-GPU runs.
+- **Accuracy:** often close to FP16 LoRA on public benchmarks when hyperparameters are sane—still validate on the task you care about.
+
+---
+
+## Terms
 
 | Term | Meaning |
 |------|---------|
-| Dequantization | Reconstruct approximate FP values from low-bit codes + scales. |
+| Dequantization | Rebuild approximate floats from low-bit codes + scales. |
 | QLoRA | Quantized backbone + LoRA adapters for memory-efficient FT. |
 
-## What to read next
-
-**[11 — PEFT overview](03-peft-overview.md)** — LoRA/QLoRA as instances of a broader “train less of the model” philosophy.
+Next: [PEFT overview](03-peft-overview.md) — LoRA/QLoRA as “train less of the model.”

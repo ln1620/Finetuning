@@ -1,33 +1,115 @@
-# 09 — LoRA (low-rank adaptation)
+# LoRA (low-rank adaptation)
 
-## In one minute
+**Idea in one sentence:** keep the huge matrix **W** fixed, add a **thin** correction **BA** (two small matrices multiplied together), only train **A** and **B**.
 
-**LoRA** freezes the original weight matrix \(W\) and learns a **small** update \(\Delta W \approx B A\) where \(B\) and \(A\) are thin matrices. The forward pass becomes \(y = (W + BA)x\). You train only \(A\) and \(B\), so memory and compute for adaptation drop sharply versus full fine-tuning.
+---
 
-## Beginner walkthrough
+### Forward pass (what the layer computes)
 
-1. **Problem restated**  
-   Full fine-tuning updates every entry of huge matrices (folder 08). Many observed **fine-tuning directions** are correlated and **low-dimensional**.
+**Vectors**
 
-2. **Hypothesis**  
-   You may not need an arbitrary full-rank \(\Delta W\); a **low-rank** product \(BA\) can approximate the useful part of the update.
+- **x** — input column vector, length **d_in** (one token’s hidden size, etc.)
 
-3. **Shapes**  
-   If \(W\) has shape \((d_{\text{out}} \times d_{\text{in}})\), choose rank \(r \ll \min(d_{\text{in}}, d_{\text{out}})\).  
-   - \(A\) is \((r \times d_{\text{in}})\)  
-   - \(B\) is \((d_{\text{out}} \times r)\)  
-   Then \(BA\) is \((d_{\text{out}} \times d_{\text{in}})\), same as \(W\): **same input and output dimensions** as the original layer.
+**Matrices**
 
-4. **Forward pass**  
-   - Standard: \(y = W x\)  
-   - LoRA: \(y = (W + BA)x\) with **\(W\) frozen**; gradients flow into **\(A\)** and **\(B\)**.
+- **W** — frozen, shape **d_out × d_in**
+- **A** — trainable, shape **r × d_in**   (rank **r** is the “bottleneck width”)
+- **B** — trainable, shape **d_out × r**
 
-5. **Parameter savings**  
-   Trainable count \(\approx r(d_{\text{in}} + d_{\text{out}})\) instead of \(d_{\text{in}} d_{\text{out}}\).
+**Output** (same thing written two ways):
 
-6. **Rank table (illustrative scale from study notes)**  
+```
+    y  =  W·x  +  B·A·x          (apply A to x first, then B, then add W·x)
 
-| Rank \(r\) | 7B model (order of mag.) | 13B | 70B | 180B |
+    y  =  (W + B·A)·x            (if you like to think of one big matrix)
+```
+
+Only **A** and **B** get gradients.
+
+---
+
+### Why multiply in the order **B (A x)**?
+
+Matrix multiplication needs **inner dimensions** to match:
+
+```
+   B            A           x
+(d_out × r) × (r × d_in) × (d_in × 1)
+      └──── r matches ────┘
+                    └── result is (d_out × 1), same shape as W x
+```
+
+**Read it left-to-right like a train:**
+
+1. **A** eats **x** → vector length **r**
+2. **B** eats that → vector length **d_out**
+3. Same length as **W x**, so you can add them
+
+---
+
+### Picture of sizes (W is the fat slab, A and B are thin)
+
+```
+  FROZEN (big)                 TRAINABLE (small)
+  ─────────────                ─────────────────
+
+       d_in wide
+   ┌─────────────────┐
+   │                 │
+   │        W        │  d_out tall   ← same footprint as B·A below
+   │   d_out × d_in  │
+   │                 │
+   └─────────────────┘
+
+        d_in wide          r wide
+   ┌──────────────┐    ┌─────────┐
+   │      A       │    │    B    │  d_out tall
+   │   r × d_in   │    │ d_out×r │
+   └──────────────┘    └─────────┘
+         │                  │
+         └── A has r rows ──┘
+              B has r cols
+              (those r’s touch when you multiply B·A)
+```
+
+**After you multiply B·A** you get a **d_out × d_in** matrix — same shape as **W** — but it only had **r·(d_in + d_out)** trainable numbers instead of **d_in·d_out**.
+
+---
+
+### Tiny numeric toy (easy to hold in your head)
+
+Suppose **d_in = 100**, **d_out = 100**, **r = 5**.
+
+| piece | shape | how many numbers |
+|-------|-------|-------------------|
+| W (full fine-tune) | 100×100 | **10 000** |
+| A | 5×100 | **500** |
+| B | 100×5 | **500** |
+| LoRA trainable total | | **1 000** |
+
+So at rank 5 you are touching **10× fewer** weights than full FT for this toy layer (real models are bigger; the ratio gets better when d_in and d_out are huge).
+
+---
+
+### Parameter count (symbolic, but readable)
+
+How many numbers you train with LoRA (order of magnitude):
+
+```
+    (# trainable)  ≈  r × d_in  +  r × d_out  =  r × (d_in + d_out)
+```
+
+How many numbers live in the full matrix **W**:
+
+```
+    (# W entries)  =  d_in × d_out
+```
+
+---
+
+### Rank table (still ballpark, real layouts vary)
+
+| Rank r | 7B (order of mag.) | 13B | 70B | 180B |
 |:---:|:---:|:---:|:---:|:---:|
 | 1 | 167K | 228K | 529K | 849K |
 | 2 | 334K | 456K | 1M | 2M |
@@ -35,11 +117,7 @@
 | 16 | 3M | 4M | 8M | 14M |
 | 512 | 86M | 117M | 270M | 434M |
 
-Exact totals depend on **which layers** you attach LoRA to and architecture hyperparameters; use the table for intuition: small \(r\) → very few trainable parameters.
-
-## Visuals
-
-**Standard vs LoRA linear layer**
+---
 
 ```mermaid
 flowchart TB
@@ -57,31 +135,22 @@ flowchart TB
   end
 ```
 
-**Low-rank product sketch (ASCII)**
+---
 
-```
-B is (d_out x r)     A is (r x d_in)
+## Extras
 
-     [==== r ====]        [==== d_in ====]
-d_out|             |  x   |                |  =  d_out x d_in
-     |             |      |                |
-     [=============]        [================]
-```
+- **Where to attach LoRA:** usually attention maps W_q, W_k, W_v, W_o, sometimes MLP; skipping biases/embeddings is common.
+- **Init:** A small random, B = 0 so BA starts at zero.
+- **Scaling:** many libs multiply BA by α/r.
+- **Inference merge:** bake W̃ = W + BA into one matmul when you ship.
 
-## Going deeper
+---
 
-- **Where to attach LoRA**: usually **attention projections** (\(W_q, W_k, W_v, W_o\)) and sometimes MLP; skipping all bias and embeddings is common.
-- **Initialization**: often \(A\) random small, \(B\) zero so initial \(\Delta W = 0\).
-- **Scaling**: implementations use a factor \(\alpha/r\) on \(BA\) to tune effective step size.
-- **Inference merge**: at deployment, \(\tilde{W} = W + BA\) can be **fused** for one matmul—no runtime LoRA overhead if you merge per deployment target.
-
-## Mini glossary
+## Terms
 
 | Term | Meaning |
 |------|---------|
-| Rank \(r\) | Inner dimension of the low-rank factorization. |
-| Adapter (LoRA sense) | Trainable \(A,B\) pair attached to a frozen \(W\). |
+| Rank r | Inner bottleneck size between A and B. |
+| Adapter (LoRA sense) | Trainable (A, B) pair next to frozen W. |
 
-## What to read next
-
-**[10 — QLoRA](02-qlora.md)** — keep the giant \(W\) in very low precision in memory, still train \(A\) and \(B\) in higher precision.
+Next: [QLoRA](02-qlora.md) — same math, but W lives in low bits in memory.

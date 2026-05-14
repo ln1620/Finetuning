@@ -1,13 +1,10 @@
-# 14 — Reinforcement learning from human feedback (RLHF)
+# Reinforcement learning from human feedback (RLHF)
 
-## In one minute
 
-**RLHF** turns **human preferences** into a training signal: people compare model answers, a **reward model** learns to score quality and safety, then **reinforcement learning** nudges the language model policy toward higher reward—producing assistants that are more **helpful**, **honest**, and **harmless** in expectation.
-
-## Beginner walkthrough
+**RLHF** turns **human preferences** into a training signal: compare model answers, train a **reward model** to score quality and safety, then use **reinforcement learning** to nudge the policy toward higher reward—producing assistants that are more **helpful**, **honest**, and **harmless** in expectation.
 
 1. **Pretraining**  
-   Self-supervised base model (folder 01).
+   Self-supervised base model (pre-training section).
 
 2. **Supervised fine-tuning (SFT)**  
    Train on curated **prompt–answer** demonstrations so the model learns a basic chat format and task breadth.
@@ -24,9 +21,6 @@
 6. **Output**  
    An **aligned chat model** suitable for user-facing deployment—still not perfect; safety is iterative.
 
-## Visuals
-
-**End-to-end pipeline**
 
 ```mermaid
 flowchart LR
@@ -37,7 +31,6 @@ flowchart LR
   rl --> aligned[AlignedChatModel]
 ```
 
-**What the reward model does (conceptual)**
 
 ```mermaid
 flowchart TB
@@ -50,13 +43,15 @@ flowchart TB
   rm --> scoreB[ScoreB]
 ```
 
-## Going deeper
+
+## Extras
 
 - **Reward hacking**: policy exploits loopholes in RM; mitigations include **KL to reference**, better RM data, adversarial audits, and **constitutional** or **RLAIF** variants.
 - **Preference modeling math**: pairwise ranking implies a **Bradley–Terry** or **Plackett–Luce** style loss for RM training.
 - **PEFT + alignment**: LoRA adapters can be the trainable policy parameters during RLHF-style stages to save memory.
 
-## Mini glossary
+
+## Terms
 
 | Term | Meaning |
 |------|---------|
@@ -64,6 +59,5 @@ flowchart TB
 | Reward model | Scorer trained from human rankings. |
 | KL penalty | Keeps updated policy near trusted reference. |
 
-## What to read next
 
-**[15 — Catastrophic forgetting](02-catastrophic-forgetting.md)** — why aggressive fine-tuning can erase skills you still care about.
+Next: [Catastrophic forgetting](02-catastrophic-forgetting.md) — why aggressive fine-tuning can erase skills you still care about.

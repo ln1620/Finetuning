@@ -1,16 +1,13 @@
-# 16 — LLM distillation
+# LLM distillation
 
-## In one minute
 
-**Distillation** trains a smaller **student** model to imitate a larger **teacher** model (or a stronger checkpoint) using the teacher’s **soft probabilities** or **hidden states**, not only hard labels. Goal: **cheaper inference** with acceptable quality—not the same objective as RLHF, though both are post-training tools.
-
-## Beginner walkthrough
+**Distillation** trains a smaller **student** to imitate a larger **teacher** (or a stronger checkpoint) using the teacher’s **soft probabilities** or **hidden states**, not only hard labels. Goal is **cheaper inference** with acceptable quality—not the same objective as RLHF, though both are post-training tools.
 
 1. **Teacher forward**  
-   Run the big model on training prompts. Capture **logits** \(z_T\) over the vocabulary (possibly temperature-scaled).
+   Run the big model on training prompts. Capture **logits z_T** over the vocabulary (possibly temperature-scaled).
 
 2. **Student forward**  
-   Run the small model, get logits \(z_S\).
+   Run the small model, get logits **z_S**.
 
 3. **Distillation loss**  
    Common term: **KL divergence** between softened teacher distribution and student distribution on each token (plus optional standard cross-entropy to ground truth tokens).
@@ -23,9 +20,6 @@
 5. **Variants**  
    **Sequence-level** distillation (imitate rationales), **feature distillation** (match intermediate representations), **on-policy** distillation from teacher samples.
 
-## Visuals
-
-**Teacher → student**
 
 ```mermaid
 flowchart LR
@@ -38,7 +32,6 @@ flowchart LR
   loss --> update[UpdateStudentWeights]
 ```
 
-**Positioning (high level)**
 
 ```mermaid
 flowchart TB
@@ -46,19 +39,20 @@ flowchart TB
   rlhf[RLHF_focus_align] --> goalB[HumanPreferencesSafety]
 ```
 
-## Going deeper
+
+## Extras
 
 - **Capacity gap**: if the student is too small, it cannot fit the teacher distribution—curriculum and task narrowing help.
 - **Data efficiency**: distillation can use **unlabeled** prompts if teacher provides targets; quality depends on teacher biases.
 - **Legal/ethical**: cloning proprietary teachers without permission is a policy issue, not just a technical one.
 
-## Mini glossary
+
+## Terms
 
 | Term | Meaning |
 |------|---------|
 | Soft targets | Probability vector over tokens from teacher softmax. |
 | Student | Smaller model being trained to imitate teacher. |
 
-## What to read next
 
-You have reached the end of this linear path. Revisit the **[curriculum index](../README.md)** or loop back to **[01](../01-introduction/01-pre-training-and-fine-tuning.md)** for a second pass with the *Going deeper* sections.
+That is the end of the sequence I wrote. Revisit the [repo index](../README.md) or skim [pre-training again](../01-introduction/01-pre-training-and-fine-tuning.md) if you want a second pass over the denser bullets.

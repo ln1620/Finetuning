@@ -1,10 +1,7 @@
-# 13 — Adapter modules
+# Adapter modules
 
-## In one minute
 
-**Adapter modules** are small neural networks (often a **down-project → nonlinearity → up-project** bottleneck) inserted **between** existing transformer layers or sublayers. During fine-tuning, **only adapters train**; the pretrained backbone stays frozen.
-
-## Beginner walkthrough
+**Adapter modules** are small networks (often **down-project → nonlinearity → up-project** bottleneck) inserted **between** transformer layers or sublayers. During fine-tuning, **only adapters train**; the pretrained backbone stays frozen.
 
 1. **Placement**  
    Typical pattern: after attention, after MLP, or parallel branches inside a block—exact wiring varies by paper (Houlsby-style, Pfeiffer-style, etc.).
@@ -21,9 +18,6 @@
 5. **Comparison to LoRA**  
    LoRA is a **linear low-rank** side path on existing projections; adapters are usually **nonlinear MLP bottlenecks** with their own parameters. Both are PEFT.
 
-## Visuals
-
-**Adapters between transformer blocks (conceptual)**
 
 ```mermaid
 flowchart TB
@@ -33,7 +27,6 @@ flowchart TB
   ad2 --> blk3[TransformerBlock_3_frozen]
 ```
 
-**Multi-task routing**
 
 ```mermaid
 flowchart LR
@@ -43,19 +36,20 @@ flowchart LR
   router --> aC[Adapter_Support]
 ```
 
-## Going deeper
+
+## Extras
 
 - **Parameter count vs latency**: adapters add **extra FLOPs** each forward unless merged/distilled away.
 - **Stability**: bottleneck dimension controls expressivity; too wide → closer to full FT behavior.
 - **With quantization**: you can quantize backbone + FP16 adapters similarly to QLoRA spirit, but engineering differs from library defaults.
 
-## Mini glossary
+
+## Terms
 
 | Term | Meaning |
 |------|---------|
 | Bottleneck | Small hidden dimension forces compact representation. |
 | Residual adapter | Adapter output added into the residual stream of the block. |
 
-## What to read next
 
-**[14 — RLHF](../05-post-training-alignment/01-reinforcement-learning-from-human-feedback.md)** — align behavior using human preference signals instead of only next-token loss.
+Next: [RLHF](../05-post-training-alignment/01-reinforcement-learning-from-human-feedback.md) — align behavior using human preference signals instead of only next-token loss.

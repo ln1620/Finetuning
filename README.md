@@ -1,32 +1,24 @@
-# LLM fine-tuning and efficient training — study path
+# LLM fine-tuning and efficient training
 
-Text-only notes in **Markdown**, grouped into **five theme folders** (fewer top-level items than 16 separate chapters). The **reading order is still linear**: follow the table from top to bottom across folders.
+Personal notes in Markdown. I grouped them into five folders so the tree is not a flat wall of sixteen files; the order below is still the order I read them in.
 
-Each note uses the same structure: **In one minute** → **Beginner walkthrough** → **Visuals** → **Going deeper** → **Mini glossary** → **What to read next**.
-
-**How to use this repo**
-
-- **First pass:** read only the *In one minute* section in each note, in table order.
-- **Second pass:** read the full walkthroughs and diagrams.
-- **Advanced skim:** jump to *Going deeper* after glancing at visuals.
-
-No scanned images are stored here; diagrams are **Mermaid** (renders on GitHub) and simple **ASCII** where a number line is clearer.
+Diagrams are Mermaid where GitHub renders them, plus ASCII where a sketch is faster than prose. **Quantization + LoRA notes use plain fractions and code blocks on purpose** so they read the same in Cursor, Obsidian, and print—no LaTeX you have to mentally compile.
 
 ---
 
-## Theme folders (what goes where)
+## Where things live
 
-| Folder | Topics |
-|--------|--------|
+| Folder | What is in there |
+|--------|------------------|
 | [01-introduction](01-introduction/) | Pre-training vs fine-tuning |
-| [02-quantization](02-quantization/) | Overview → symmetric / asymmetric → PTQ → QAT |
-| [03-adaptation-and-full-fine-tuning](03-adaptation-and-full-fine-tuning/) | Base model ladder → full-parameter fine-tuning |
-| [04-efficient-fine-tuning](04-efficient-fine-tuning/) | LoRA, QLoRA, PEFT survey, adapters |
-| [05-post-training-alignment](05-post-training-alignment/) | RLHF, catastrophic forgetting, distillation |
+| [02-quantization](02-quantization/) | Overview through PTQ and QAT |
+| [03-adaptation-and-full-fine-tuning](03-adaptation-and-full-fine-tuning/) | Base model ladder, then full-parameter fine-tuning |
+| [04-efficient-fine-tuning](04-efficient-fine-tuning/) | LoRA, QLoRA, PEFT, adapters |
+| [05-post-training-alignment](05-post-training-alignment/) | RLHF, forgetting, distillation |
 
 ---
 
-## Curriculum map
+## Map (same order as the table)
 
 ```mermaid
 flowchart LR
@@ -62,25 +54,25 @@ flowchart LR
 
 ---
 
-## Learning path (read in this order)
+## Reading order
 
-| # | Section | Note | You will learn |
-|---|---------|------|----------------|
-| 1 | Introduction | [01-pre-training-and-fine-tuning](01-introduction/01-pre-training-and-fine-tuning.md) | From raw data and self-supervision to a base model, then task/domain adaptation. |
-| 2 | Quantization | [01-overview](02-quantization/01-overview.md) | Why lower-bit weights and activations exist, and what you trade off. |
-| 3 | Quantization | [02-symmetric-quantization](02-quantization/02-symmetric-quantization.md) | Min–max range, scale factor, mapping floats to integer bins (symmetric case). |
-| 4 | Quantization | [03-asymmetric-quantization](02-quantization/03-asymmetric-quantization.md) | Zero-point when real values are not symmetric around zero. |
-| 5 | Quantization | [04-post-training-quantization-ptq](02-quantization/04-post-training-quantization-ptq.md) | Quantize a finished model after calibration. |
-| 6 | Quantization | [05-quantization-aware-training](02-quantization/05-quantization-aware-training.md) | Train with quantization in the loop for better low-bit accuracy. |
-| 7 | Adaptation | [01-from-base-model-to-specialization](03-adaptation-and-full-fine-tuning/01-from-base-model-to-specialization.md) | Base → chat-style → domain vs task specialization. |
-| 8 | Adaptation | [02-full-parameter-fine-tuning](03-adaptation-and-full-fine-tuning/02-full-parameter-fine-tuning.md) | Updating every weight: cost and when it is still used. |
-| 9 | Efficient FT | [01-lora](04-efficient-fine-tuning/01-lora.md) | Low-rank adapters, \(y=(W+BA)x\), rank and parameter counts. |
-| 10 | Efficient FT | [02-qlora](04-efficient-fine-tuning/02-qlora.md) | Quantized base weights plus LoRA adapters and dequantization at compute. |
-| 11 | Efficient FT | [03-peft-overview](04-efficient-fine-tuning/03-peft-overview.md) | Parameter-efficient fine-tuning and limits of full fine-tuning. |
-| 12 | Efficient FT | [04-peft-methods-overview](04-efficient-fine-tuning/04-peft-methods-overview.md) | Survey: prefix, prompt, adapters, bias, (IA)³, LoRA/QLoRA pointers. |
-| 13 | Efficient FT | [05-adapter-modules](04-efficient-fine-tuning/05-adapter-modules.md) | Small inserted layers; multi-task via different adapters. |
-| 14 | Alignment | [01-reinforcement-learning-from-human-feedback](05-post-training-alignment/01-reinforcement-learning-from-human-feedback.md) | Preference data, reward model, policy optimization for alignment. |
-| 15 | Alignment | [02-catastrophic-forgetting](05-post-training-alignment/02-catastrophic-forgetting.md) | Why new training can erase old behavior; link to freezing and adapters. |
-| 16 | Alignment | [03-llm-distillation](05-post-training-alignment/03-llm-distillation.md) | Teacher–student compression and how it differs from RLHF-style alignment. |
+| # | Topic | File |
+|---|--------|------|
+| 1 | Introduction | [01-pre-training-and-fine-tuning](01-introduction/01-pre-training-and-fine-tuning.md) |
+| 2 | Quantization | [01-overview](02-quantization/01-overview.md) |
+| 3 | Quantization | [02-symmetric-quantization](02-quantization/02-symmetric-quantization.md) |
+| 4 | Quantization | [03-asymmetric-quantization](02-quantization/03-asymmetric-quantization.md) |
+| 5 | Quantization | [04-post-training-quantization-ptq](02-quantization/04-post-training-quantization-ptq.md) |
+| 6 | Quantization | [05-quantization-aware-training](02-quantization/05-quantization-aware-training.md) |
+| 7 | Adaptation | [01-from-base-model-to-specialization](03-adaptation-and-full-fine-tuning/01-from-base-model-to-specialization.md) |
+| 8 | Adaptation | [02-full-parameter-fine-tuning](03-adaptation-and-full-fine-tuning/02-full-parameter-fine-tuning.md) |
+| 9 | Efficient FT | [01-lora](04-efficient-fine-tuning/01-lora.md) |
+| 10 | Efficient FT | [02-qlora](04-efficient-fine-tuning/02-qlora.md) |
+| 11 | Efficient FT | [03-peft-overview](04-efficient-fine-tuning/03-peft-overview.md) |
+| 12 | Efficient FT | [04-peft-methods-overview](04-efficient-fine-tuning/04-peft-methods-overview.md) |
+| 13 | Efficient FT | [05-adapter-modules](04-efficient-fine-tuning/05-adapter-modules.md) |
+| 14 | Alignment | [01-reinforcement-learning-from-human-feedback](05-post-training-alignment/01-reinforcement-learning-from-human-feedback.md) |
+| 15 | Alignment | [02-catastrophic-forgetting](05-post-training-alignment/02-catastrophic-forgetting.md) |
+| 16 | Alignment | [03-llm-distillation](05-post-training-alignment/03-llm-distillation.md) |
 
-Start here: **[01-pre-training-and-fine-tuning](01-introduction/01-pre-training-and-fine-tuning.md)**
+Start: [01-pre-training-and-fine-tuning](01-introduction/01-pre-training-and-fine-tuning.md)

@@ -1,10 +1,7 @@
-# 06 — Quantization-aware training (QAT)
+# Quantization-aware training (QAT)
 
-## In one minute
 
-**QAT** exposes the model to **fake quantization** during training (or a fine-tune phase) so gradients learn to tolerate rounding. Compared with naive PTQ, QAT often recovers accuracy for aggressive bit-widths—at the cost of extra training time.
-
-## Beginner walkthrough
+**QAT** runs **fake quantization** during training (or a fine-tune phase) so gradients learn to tolerate rounding. Compared with naive PTQ it often recovers accuracy for aggressive bit widths, at the cost of extra training time.
 
 1. **The problem QAT solves**  
    Naive rounding changes weights in a way the original loss landscape never prepared for. You get a **“loss of accuracy”** because effective weights drift from what training assumed.
@@ -21,9 +18,6 @@
 5. **Export**  
    Produce a **quantized model** that matches deployment kernels.
 
-## Visuals
-
-**QAT pipeline**
 
 ```mermaid
 flowchart LR
@@ -32,7 +26,6 @@ flowchart LR
   finetune --> quantized[QuantizedModel]
 ```
 
-**PTQ vs QAT (comparison)**
 
 ```mermaid
 flowchart TB
@@ -44,19 +37,20 @@ flowchart TB
   end
 ```
 
-## Going deeper
+
+## Extras
 
 - **Straight-through estimator (STE)**: backward ignores rounding discontinuity; known approximation, works empirically.
 - **QAT for LLMs** is less universal than for CNNs on mobile; many LLM deployments use **PTQ + clever formats** instead—but QAT concepts still explain why “just round” fails.
-- Combining QAT-style ideas with **LoRA** leads to practical recipes (see **QLoRA** in folder 10).
+- Combining QAT-style ideas with **LoRA** leads to practical recipes (see **QLoRA** in the QLoRA section).
 
-## Mini glossary
+
+## Terms
 
 | Term | Meaning |
 |------|---------|
 | Fake quant | Apply quant/dequant in forward while keeping trainable floats underneath. |
 | QAT | Training-time exposure to quantization effects. |
 
-## What to read next
 
-**[07 — From base model to specialization](../03-adaptation-and-full-fine-tuning/01-from-base-model-to-specialization.md)** — where fine-tuning fits in the product ladder after compression concepts.
+Next: [From base model to specialization](../03-adaptation-and-full-fine-tuning/01-from-base-model-to-specialization.md) — where fine-tuning fits in the product ladder after compression concepts.
